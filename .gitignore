@@ -1,0 +1,9 @@
+.ipynb_checkpoints/
+.vscode/
+__pycache__/
+
+features/
+
+*.tar
+!best_model.tar
+!399.tar
