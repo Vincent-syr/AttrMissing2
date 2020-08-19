@@ -44,21 +44,23 @@ def save_features(model, data_loader, outfile):
 
 if __name__ == '__main__':
     params = parse_args('save_features')
-
+    print(params)
 
     image_size = 224
-
+    aux = params.aux
     # split = params.split   # split == novel
     loadfile_list = [configs.data_dir[params.dataset] + 'base.json', configs.data_dir[params.dataset] + 'val.json', configs.data_dir[params.dataset] + 'novel.json']
     split_list = ['base', 'val', 'novel']
     # loadfile = configs.data_dir[params.dataset] + split + '.json'
-    checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(configs.save_dir, params.dataset, params.model, params.method)
+    params.checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(configs.save_dir, params.dataset, params.model, params.method)
     if params.train_aug:
-        checkpoint_dir += '_aug'
+        params.checkpoint_dir += '_aug'
+    if aux:
+        params.checkpoint_dir += '_aux'
+    if not params.method  in ['baseline', 'baseline++']: 
+        params.checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
         
-    checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
-
-    modelfile   = get_best_file(checkpoint_dir)
+    modelfile   = get_best_file(params.checkpoint_dir)
     model = model_dict[params.model]()    # resnet10
     model = model.cuda()
 
@@ -79,7 +81,7 @@ if __name__ == '__main__':
     
     for i, loadfile in enumerate(loadfile_list):   # base, val, novel
         
-        outfile = os.path.join( checkpoint_dir.replace("checkpoints","features"), split_list[i] + '_best' + ".hdf5")  # './features/miniImagenet/Conv4_baseline_aug/novel.hdf5'
+        outfile = os.path.join(params.checkpoint_dir.replace("checkpoints","features"), split_list[i] + '_best' + ".hdf5")  # './features/miniImagenet/Conv4_baseline_aug/novel.hdf5'
         datamgr         = SimpleDataManager(image_size, batch_size = 64)
         data_loader      = datamgr.get_data_loader(loadfile, aug = False)
 

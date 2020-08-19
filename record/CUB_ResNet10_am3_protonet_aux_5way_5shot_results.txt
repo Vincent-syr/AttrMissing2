@@ -1,0 +1,2 @@
+Time: 20200819-051813, Setting: CUB-novel-ResNet10-am3_protonet 5shot 5way_train 5way_test, Acc: 600 Test Acc = 72.99% +- 0.69% 
+Time: 20200819-051939, Setting: CUB-novel-ResNet10-am3_protonet 5shot 5way_train 5way_test, Acc: 600 Test Acc = 73.44% +- 0.68% 

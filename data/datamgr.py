@@ -5,7 +5,7 @@ from PIL import Image
 import numpy as np
 import torchvision.transforms as transforms
 import data.additional_transforms as add_transforms
-from data.dataset import SimpleDataset, SetDataset, EpisodicBatchSampler
+from data.dataset import SimpleDataset, MultiModalDataset, SetDataset, EpisodicBatchSampler, EpisodicMultiModalSampler
 from abc import abstractmethod
 
 class TransformLoader:
@@ -64,22 +64,34 @@ class SimpleDataManager(DataManager):
 
 
 class SetDataManager(DataManager):
-    def __init__(self, image_size, n_way, n_support, n_query, n_eposide =100):        
+    def __init__(self, image_size, n_way, n_support, n_query, aux=False,  n_eposide =100):        
         super(SetDataManager, self).__init__()
         self.image_size = image_size
         self.n_way = n_way
         self.batch_size = n_support + n_query
         self.n_eposide = n_eposide
-
         self.trans_loader = TransformLoader(image_size)
+
+        self.aux = aux   # use attribute
 
     def get_data_loader(self, data_file, aug): #parameters that would change on train/val set
         transform = self.trans_loader.get_composed_transform(aug)
-        dataset = SetDataset( data_file , self.batch_size, transform )
-        sampler = EpisodicBatchSampler(len(dataset), self.n_way, self.n_eposide )  
-        data_loader_params = dict(batch_sampler = sampler,  num_workers = 12, pin_memory = True)       
-        # data_loader_params = dict(batch_sampler = sampler,  num_workers = 1, pin_memory = True)       
-        data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
+
+        if not self.aux:     # only image feature
+            dataset = SetDataset( data_file , self.batch_size, transform )
+            sampler = EpisodicBatchSampler(len(dataset), self.n_way, self.n_eposide )  
+            data_loader_params = dict(batch_sampler = sampler,  num_workers = 12, pin_memory = True)       
+            # data_loader_params = dict(batch_sampler = sampler,  num_workers = 1, pin_memory = True)       
+            data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
+
+        else: # use attribute word vector
+            img_file, attr_file = data_file
+            dataset = MultiModalDataset(img_file, attr_file, transform)
+            sampler = EpisodicMultiModalSampler(dataset.label, self.n_way, self.batch_size, self.n_eposide)
+
+            data_loader_params = dict(batch_sampler = sampler,  num_workers = 12, pin_memory = True)       
+            data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
+
         return data_loader
 
 

@@ -1,5 +1,25 @@
 import torch
 import numpy as np
+import time
+
+
+class Timer():
+
+    def __init__(self):
+        """ measuring time start from training
+            
+        """        
+        self.o = time.time()
+
+    def measure(self, p=1):
+        x = (time.time() - self.o) / p
+        x = int(x)
+        if x >= 3600:
+            return '{:.1f}h'.format(x / 3600)
+        if x >= 60:
+            return '{}m'.format(round(x / 60))
+        return '{}s'.format(x)
+
 
 def one_hot(y, num_class):         
     return torch.zeros((len(y), num_class)).scatter_(1, y.unsqueeze(1), 1)

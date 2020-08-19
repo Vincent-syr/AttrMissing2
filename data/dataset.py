@@ -25,6 +25,39 @@ class SimpleDataset:
         return len(self.meta['image_names'])
 
 
+class MultiModalDataset:
+    def __init__(self, img_file, attr_file, transform, target_transform=identity):
+        with open(img_file, 'r') as f:
+            self.meta = json.load(f)
+
+        self.data = self.meta['image_names']
+        self.label = self.meta['image_labels']
+
+        self.attr_file = attr_file
+        self.transform = transform
+        self.target_transform = target_transform
+
+
+    def __getitem__(self, i):
+        # image_path = os.path.join(self.meta['image_names'][i])
+        image_path = self.data[i]
+        img = Image.open(image_path).convert('RGB')
+        img = self.transform(img)
+
+        attr_all = torch.from_numpy(np.load(self.attr_file))
+        attr = attr_all[self.meta['image_labels'][i]]   # only a category
+
+        target = self.target_transform(self.label[i])
+        return (img, attr), target
+
+    def __len__(self):
+        return len(self.data)
+        
+
+
+
+
+
 class SetDataset:
     def __init__(self, data_file, batch_size, transform):
         with open(data_file, 'r') as f:
@@ -84,3 +117,37 @@ class EpisodicBatchSampler(object):
     def __iter__(self):
         for i in range(self.n_episodes):
             yield torch.randperm(self.n_classes)[:self.n_way]
+
+
+
+class EpisodicMultiModalSampler(object):
+    def __init__(self, label, n_way, n_per, n_episodes):   
+        self.n_episodes = n_episodes
+        self.n_way = n_way
+        self.n_per = n_per
+        label = np.array(label)
+        self.m_ind = []
+        
+        for i in np.unique(label):
+            ind = np.argwhere(label == i).reshape(-1)
+            ind = torch.from_numpy(ind)
+            self.m_ind.append(ind)     
+
+
+    def __len__(self):
+        return self.n_episodes
+
+
+    def __iter__(self):
+        """ iterater of each episode
+        """
+        for i_batch in range(self.n_episodes):
+            batch = []
+            classes = torch.randperm(len(self.m_ind))[:self.n_way]
+            for c in classes:
+                l = self.m_ind[c]
+                pos = torch.randperm(len(l))[:self.n_per]
+                batch.append(l[pos])
+            # batch = torch.stack(batch).t().reshape(-1)
+            batch = torch.stack(batch).reshape(-1)
+            yield batch

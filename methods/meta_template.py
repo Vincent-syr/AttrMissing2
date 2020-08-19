@@ -35,6 +35,7 @@ class MetaTemplate(nn.Module):
             z_all = x
         else:
             x           = x.contiguous().view( self.n_way * (self.n_support + self.n_query), *x.size()[2:]) 
+
             z_all       = self.feature.forward(x)
             z_all       = z_all.view( self.n_way, self.n_support + self.n_query, -1)
             
@@ -43,8 +44,9 @@ class MetaTemplate(nn.Module):
 
         return z_support, z_query
 
-    def correct(self, x):       
-        scores = self.set_forward(x)
+    def correct(self, x, is_feature=False):
+
+        scores = self.set_forward(x, is_feature)
         y_query = np.repeat(range( self.n_way ), self.n_query )
 
         topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
@@ -52,14 +54,30 @@ class MetaTemplate(nn.Module):
         top1_correct = np.sum(topk_ind[:,0] == y_query)
         return float(top1_correct), len(y_query)
 
-    def train_loop(self, epoch, train_loader, optimizer ):
-        print_freq = 10
+
+
+    def train_loop(self, epoch, train_loader, optimizer, aux=False ):
+        print_freq = 20
 
         avg_loss=0
-        for i, (x,_ ) in enumerate(train_loader):
-            self.n_query = x.size(1) - self.n_support           
-            if self.change_way:
-                self.n_way  = x.size(0)
+        # if not aux:
+        for i, (x,_ ) in enumerate(train_loader, 1):
+            if aux:  # x = (img, attr)   
+                # (n_way * (k+q), feat)  --> (n_way, k+q, feat)
+                x[0] = x[0].cuda()
+                x[0] = x[0].view(self.n_way, -1, x[0].shape[1], x[0].shape[2], x[0].shape[3])
+                x[1] = x[1].cuda()
+                x[1] = x[1].view(self.n_way, -1, x[1].shape[-1])
+                # print("x[0].shape = ", x[0].shape)
+                # print("x[1].shape = ", x[1].shape)
+                self.n_query = x[0].size(1) - self.n_support
+            else:
+                self.n_query = x.size(1) - self.n_support           
+
+
+            # if self.change_way:
+            #     self.n_way  = x.size(0)
+                
             optimizer.zero_grad()
             loss = self.set_forward_loss( x )
             loss.backward()
@@ -70,16 +88,29 @@ class MetaTemplate(nn.Module):
                 #print(optimizer.state_dict()['param_groups'][0]['lr'])
                 print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
 
-    def test_loop(self, test_loader, record = None):
+
+    def test_loop(self, test_loader, aux=False ,record = None):
         correct =0
         count = 0
         acc_all = []
         
         iter_num = len(test_loader) 
         for i, (x,_) in enumerate(test_loader):
-            self.n_query = x.size(1) - self.n_support
-            if self.change_way:
-                self.n_way  = x.size(0)
+
+
+            if aux:  # x = (img, attr)   
+                # (n_way * (k+q), feat)  --> (n_way, k+q, feat)
+                x[0] = x[0].view(self.n_way, -1, x[0].shape[1], x[0].shape[2], x[0].shape[3]).cuda()
+                x[1] = x[1].view(self.n_way, -1, x[1].shape[-1]).cuda()
+                # print("x[0].shape = ", x[0].shape)
+                # print("x[1].shape = ", x[1].shape)
+                self.n_query = x[0].size(1) - self.n_support
+            else:
+                x = x.cuda()
+                self.n_query = x.size(1) - self.n_support        
+
+            # if self.change_way:
+            #     self.n_way  = x.size(0)
             correct_this, count_this = self.correct(x)
             acc_all.append(correct_this/ count_this*100  )
 
