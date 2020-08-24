@@ -87,7 +87,7 @@ class MetaTemplate(nn.Module):
             if i % print_freq==0:
                 #print(optimizer.state_dict()['param_groups'][0]['lr'])
                 print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader), avg_loss/float(i+1)))
-
+        return avg_loss
 
     def test_loop(self, test_loader, aux=False ,record = None):
         correct =0

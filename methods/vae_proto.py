@@ -115,6 +115,7 @@ class Model(nn.Module):
         count = 0
         syn_acc_all = []
         raw_acc_all = []
+        miss_acc_all = []
         iter_num = self.n_episodes
 
         # turn into val mode
@@ -132,13 +133,18 @@ class Model(nn.Module):
             syn_idx = torch.randperm(img_feat.shape[0])[:int(miss_rate*img_feat.shape[0])]    # (n2)
             tmp_attr = self.generate_attr(img_feat[syn_idx])    # (n2, f2)
             # synthesis attr and raw attr use for validation test
+            raw_attr = copy.deepcopy(attr_feat)
             syn_attr = copy.deepcopy(attr_feat)
             syn_attr[syn_idx] = tmp_attr
-            # print("syn_idx = ", syn_idx)
-            raw_attr = attr_feat
+
+            miss_attr = copy.deepcopy(attr_feat)
+            tmp_zero = torch.zeros(len(syn_idx), attr_feat.shape[-1])
+            miss_attr[syn_idx] = tmp_zero
+
 
             syn_attr_exp = torch.unsqueeze(syn_attr, 1).expand(-1, img_feat.shape[1], -1)   # (n*b, k+q, f2)
             raw_attr_exp = torch.unsqueeze(raw_attr, 1).expand(-1, img_feat.shape[1], -1)
+            miss_attr_exp = torch.unsqueeze(miss_attr, 1).expand(-1, img_feat.shape[1], -1)
             # print("img_feat.shape = ", img_feat.shape)
             # print('syn_attr_exp.shape = ', syn_attr_exp.shape)
 
@@ -152,22 +158,31 @@ class Model(nn.Module):
 
             syn_correct, syn_count = fsl_model.correct([img_feat, syn_attr_exp], is_feature=True)
             raw_correct, raw_count = fsl_model.correct([img_feat, raw_attr_exp], is_feature=True)
+            miss_correct, miss_count = fsl_model.correct([img_feat, miss_attr_exp], is_feature=True)
 
             syn_acc_all.append( syn_correct / syn_count * 100 )
             raw_acc_all.append( raw_correct / raw_count * 100 )
+            miss_acc_all.append(miss_correct / miss_count * 100)
 
         syn_acc_all  = np.asarray(syn_acc_all)
         raw_acc_all  = np.asarray(raw_acc_all)
+        miss_acc_all  = np.asarray(miss_acc_all)
+
 
         syn_acc_mean = np.mean(syn_acc_all)
         raw_acc_mean = np.mean(raw_acc_all)
+        miss_acc_mean = np.mean(miss_acc_all)
+
         syn_acc_std  = np.std(syn_acc_all)
         raw_acc_std  = np.std(raw_acc_all)
+        miss_acc_std  = np.std(miss_acc_all)
+
 
         print('%d Syn_Attribute: Test Acc = %4.2f%% +- %4.2f%%' %(iter_num,  syn_acc_mean, 1.96* syn_acc_std/np.sqrt(iter_num)))
         print('%d Raw_Attribute: Test Acc = %4.2f%% +- %4.2f%%' %(iter_num,  raw_acc_mean, 1.96* raw_acc_std/np.sqrt(iter_num)))
+        print('%d Miss_Attribute: Test Acc = %4.2f%% +- %4.2f%%' %(iter_num,  miss_acc_mean, 1.96* miss_acc_std/np.sqrt(iter_num)))
 
-        return syn_acc_mean, raw_acc_mean
+        return syn_acc_mean, raw_acc_mean, miss_acc_mean
 
 
     def generate_attr(self, img):

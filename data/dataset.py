@@ -6,6 +6,7 @@ import json
 import numpy as np
 import torchvision.transforms as transforms
 import os
+
 identity = lambda x:x
 class SimpleDataset:
     def __init__(self, data_file, transform, target_transform=identity):
@@ -35,7 +36,7 @@ class MultiModalDataset:
 
         self.attr_file = attr_file
         self.transform = transform
-        self.target_transform = target_transform
+        self.target_transform = target_transform  # for label y
 
 
     def __getitem__(self, i):
@@ -53,8 +54,6 @@ class MultiModalDataset:
     def __len__(self):
         return len(self.data)
         
-
-
 
 
 

@@ -42,12 +42,14 @@ def train_vae(base_dataset, val_dataset, gen_model, fsl_model, start_epoch, stop
 #       validation 
         # gen_model.eval()
         start = time.time()
-        syn_acc, raw_acc = gen_model.test_loop(val_dataset, fsl_model, miss_rate)
+        syn_acc, raw_acc, miss_acc = gen_model.test_loop(val_dataset, fsl_model, miss_rate)
         end = time.time()
         print("test time = %.2f s" % (end-start))
 
         writer.add_scalar('val raw attribute acc', raw_acc, epoch)
         writer.add_scalar('val syn attribute acc', syn_acc, epoch)
+        writer.add_scalar('val miss attribute acc', miss_acc, epoch)
+
 
 
         if syn_acc > max_acc : #for baseline and baseline++, we don't use validation in default and we let acc = -1, but we allow options to validate with DB index
@@ -178,15 +180,7 @@ if __name__ == "__main__":
     if not os.path.isdir(params.save_dir):
         os.makedirs(params.save_dir)
 
-    # print(params.save_dir)
-    # print(params.load_dir)
-    # exit(0)
-
-
     # load data
-    # feature_dir = 'features/CUB/ResNet10_protonet_aug_5way_5shot'
-    # base_file = os.path.join(feature_dir, 'base_best.hdf5')
-    # val_file = os.path.join(feature_dir, 'val_best.hdf5')
     base_file = os.path.join(params.load_dir.replace("checkpoints","features"),  "base_best.hdf5")
     val_file = os.path.join(params.load_dir.replace("checkpoints","features"),  "val_best.hdf5")
     attr_file = 'filelists/CUB/attr_array.npy'
@@ -217,6 +211,3 @@ if __name__ == "__main__":
 
 
 
-    # train_vae(model, )
-
-        

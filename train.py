@@ -7,6 +7,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 import time
 import os
 import glob
+from tensorboardX import SummaryWriter
 
 import configs
 import backbone
@@ -28,24 +29,29 @@ def train(base_loader, val_loader, model, optimization, start_epoch, stop_epoch,
     optimizer = torch.optim.Adam(model.parameters())
     # max_acc = 0
     timer = Timer()
-
     if not os.path.isdir(params.checkpoint_dir):
         os.makedirs(params.checkpoint_dir)
+
+    tmp = params.checkpoint_dir.split('/')[-1]
+    writer_dir = 'runs/pretrain_%s_%s' % (params.dataset, tmp)
+    writer = SummaryWriter(log_dir=writer_dir)
+
 
     for epoch in range(start_epoch,stop_epoch):
         model.train()
         start = time.time()
-        model.train_loop(epoch, base_loader,  optimizer, aux=params.aux ) #model are called by reference, no need to return 
+        loss = model.train_loop(epoch, base_loader,  optimizer, aux=params.aux ) #model are called by reference, no need to return
         end = time.time()
-        print("train time = %.2f s" % (end-start))        
-        model.eval()
+        print("train time = %.2f s" % (end-start))
+        writer.add_scalar('train_loss', loss, epoch)
 
+        model.eval()
         start = time.time()
         acc = model.test_loop(val_loader, aux=aux)
         end = time.time()
         print("test time = %.2f s" % (end-start))
+        writer.add_scalar('val acc', acc, epoch)
 
-        # print(" val acc = ", acc)
         print("max_acc = ", max_acc)
         if acc > max_acc : #for baseline and baseline++, we don't use validation in default and we let acc = -1, but we allow options to validate with DB index
             print("best model! save...")
@@ -59,6 +65,8 @@ def train(base_loader, val_loader, model, optimization, start_epoch, stop_epoch,
 
         # cumulative cost time / total time predicted
         print('ETA:{}/{}'.format(timer.measure(), timer.measure((epoch+1) / stop_epoch)))
+
+    writer.close()
     return model
 
 
@@ -85,14 +93,14 @@ if __name__=='__main__':
     params.stop_epoch = 200 # This is different as stated in the open-review paper. However, using 400 epoch in baseline actually lead to over-fitting
     optimization = 'Adam'
 
-    # meta learning method to pre-training
-    if params.n_shot == 1:
-        params.stop_epoch = 600
-    elif params.n_shot == 5:
-        params.stop_epoch = 400     # default
-    else:
-        params.stop_epoch = 600    
-
+    # # meta learning method to pre-training
+    # if params.n_shot == 1:
+    #     params.stop_epoch = 600
+    # elif params.n_shot == 5:
+    #     params.stop_epoch = 400     # default
+    # else:
+    #     params.stop_epoch = 600
+    params.stop_epoch = 100
 
     n_query = max(1, int(16* params.test_n_way/params.train_n_way)) #if test_n_way is smaller than train_n_way, reduce n_query to keep batch size small ,16
     # print("n_query = ", n_query)
@@ -133,17 +141,18 @@ if __name__=='__main__':
     start_epoch = params.start_epoch
     stop_epoch = params.stop_epoch
 
+    max_acc = 0
     if params.resume:
         # resume_file = get_resume_file(params.checkpoint_dir)
         resume_file = os.path.join(params.checkpoint_dir, str(params.start_epoch) +'.tar')
         # print(resume_file)
-        max_acc = 0
         if resume_file is not None:
             tmp = torch.load(resume_file)
             start_epoch = tmp['epoch']+1
             if 'max_acc' in tmp:
                 max_acc = tmp['max_acc']
             model.load_state_dict(tmp['state'])
+
 
 
     model = train(base_loader, val_loader,  model, optimization, start_epoch, stop_epoch, params, max_acc)
