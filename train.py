@@ -36,6 +36,8 @@ def train(base_loader, val_loader, model, optimization, start_epoch, stop_epoch,
     writer_dir = 'runs/pretrain_%s_%s' % (params.dataset, tmp)
     writer = SummaryWriter(log_dir=writer_dir)
 
+    # if stop_epoch==100:
+    #    params.save_freq = 20
 
     for epoch in range(start_epoch,stop_epoch):
         model.train()
@@ -87,10 +89,9 @@ if __name__=='__main__':
         attr_file = configs.data_dir[params.dataset] + 'attr_array.npy'
         base_file = [base_file, attr_file]
         val_file = [val_file, attr_file]
-        
 
     image_size = 224
-    params.stop_epoch = 200 # This is different as stated in the open-review paper. However, using 400 epoch in baseline actually lead to over-fitting
+    # params.stop_epoch = 200 # This is different as stated in the open-review paper. However, using 400 epoch in baseline actually lead to over-fitting
     optimization = 'Adam'
 
     # # meta learning method to pre-training
@@ -100,25 +101,25 @@ if __name__=='__main__':
     #     params.stop_epoch = 400     # default
     # else:
     #     params.stop_epoch = 600
-    params.stop_epoch = 100
+    # params.stop_epoch = 100
 
-    n_query = max(1, int(16* params.test_n_way/params.train_n_way)) #if test_n_way is smaller than train_n_way, reduce n_query to keep batch size small ,16
-    # print("n_query = ", n_query)
+    n_query = 16
+    # n_query = max(1, int(16* params.test_n_way/params.train_n_way)) #if test_n_way is smaller than train_n_way, reduce n_query to keep batch size small ,16
+    print("n_query = ", n_query)
     train_few_shot_params    = dict(n_way = params.train_n_way, n_support = params.n_shot) 
     # base_datamgr            = SetDataManager(image_size, n_query = n_query,   **train_few_shot_params)
-    base_datamgr            = SetDataManager(image_size, n_query = n_query, aux=aux,   **train_few_shot_params)        
+    base_datamgr            = SetDataManager(image_size, n_query = n_query, aux=aux, n_episode=params.n_episode, **train_few_shot_params)
     base_loader             = base_datamgr.get_data_loader( base_file , aug = params.train_aug )
         
     test_few_shot_params     = dict(n_way = params.test_n_way, n_support = params.n_shot) 
-    # val_datamgr             = SetDataManager(image_size, n_query = n_query, **test_few_shot_params)
-    val_datamgr             = SetDataManager(image_size, n_query = n_query, aux=aux, **test_few_shot_params)
+    val_datamgr             = SetDataManager(image_size, n_query = n_query, aux=aux, n_episode=params.n_episode , **test_few_shot_params)
     val_loader              = val_datamgr.get_data_loader( val_file, aug = False) 
         #a batch for SetDataManager: a [n_way, n_support + n_query, dim, w, h] tensor        
 
     if params.method == 'protonet':
         model           = ProtoNet( model_dict[params.model], **train_few_shot_params ) 
     elif params.method == 'am3_protonet':
-        model = AM3_ProtoNet(model_dict[params.model], word_dim=word_dim,  **train_few_shot_params)
+        model = AM3_ProtoNet(model_dict[params.model], params=params, word_dim=word_dim,  **train_few_shot_params)
     else:
         raise ValueError('Unknown method')
 
@@ -152,7 +153,5 @@ if __name__=='__main__':
             if 'max_acc' in tmp:
                 max_acc = tmp['max_acc']
             model.load_state_dict(tmp['state'])
-
-
 
     model = train(base_loader, val_loader,  model, optimization, start_epoch, stop_epoch, params, max_acc)

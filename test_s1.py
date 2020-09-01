@@ -60,7 +60,7 @@ if __name__ == '__main__':
     n_query = 15
     few_shot_params = dict(n_way = params.test_n_way , n_support = params.n_shot)   # 5 way, 5 shot
     if params.method == 'am3_protonet':
-        model = AM3_ProtoNet(model_dict[params.model], word_dim=word_dim, **few_shot_params)
+        model = AM3_ProtoNet(model_dict[params.model], params=params, word_dim=word_dim, **few_shot_params)
 
     elif params.method == 'protonet':
         model = ProtoNet(model_dict[params.model], **few_shot_params)

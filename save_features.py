@@ -8,8 +8,7 @@ import h5py
 import configs
 import backbone
 from data.datamgr import SimpleDataManager
-from methods.baselinetrain import BaselineTrain
-from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get_assigned_file 
+from io_utils import model_dict, parse_args, get_resume_file, get_best_file, get_assigned_file
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -38,8 +37,6 @@ def save_features(model, data_loader, outfile):
     count_var[0] = count
     
     f.close()
-
-
 
 
 if __name__ == '__main__':

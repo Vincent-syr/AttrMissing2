@@ -4,7 +4,7 @@ __pycache__/
 .idea/
 features/
 runs/
-
+*.jpg
 *.tar
 # !best_model.tar
 # !399.tar

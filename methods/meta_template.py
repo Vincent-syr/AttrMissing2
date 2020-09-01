@@ -97,7 +97,6 @@ class MetaTemplate(nn.Module):
         iter_num = len(test_loader) 
         for i, (x,_) in enumerate(test_loader):
 
-
             if aux:  # x = (img, attr)   
                 # (n_way * (k+q), feat)  --> (n_way, k+q, feat)
                 x[0] = x[0].view(self.n_way, -1, x[0].shape[1], x[0].shape[2], x[0].shape[3]).cuda()

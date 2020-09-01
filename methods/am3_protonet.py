@@ -3,20 +3,28 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import numpy as np
-import torch.nn.functional as F
 from methods.meta_template import MetaTemplate
 
 class AM3_ProtoNet(MetaTemplate):
-    def __init__(self, model_func,  n_way, n_support, word_dim=None):
+    def __init__(self, model_func,  n_way, n_support, params, word_dim=None):
         super(AM3_ProtoNet, self).__init__( model_func,  n_way, n_support)
         self.word_dim = word_dim 
         self.img_feature = model_func
-        self.proj = nn.Linear(self.word_dim,  self.feature.final_feat_dim)
+        self.tranformer = nn.Sequential(
+            nn.Linear(self.word_dim, 300),
+            nn.ReLU(),
+            nn.Dropout(1.0 - params.mlp_dropout),
+            nn.Linear(300, self.feature.final_feat_dim)
+        )
+        # self.proj = nn.Linear(self.word_dim,  self.feature.final_feat_dim)
+
         self.mixNet = nn.Sequential(
-                        nn.Linear(self.feature.final_feat_dim, 1),
-                        nn.Sigmoid()
-                      )
-        
+            nn.Linear(self.feature.final_feat_dim, 300),
+            nn.ReLU(),
+            nn.Dropout(1.0 - params.mlp_dropout),
+            nn.Linear(300, 1),
+            nn.Sigmoid()
+        )
         self.loss_fn = nn.CrossEntropyLoss()
 
 
@@ -28,9 +36,9 @@ class AM3_ProtoNet(MetaTemplate):
         # print('attr_feat.shape = ', attr_feat.shape)
 
         attr_feat = attr_feat.mean(1)   # (n_way, feat_dim)
-        attr_proj = self.proj(attr_feat)   # (n_way, img_feat_dim)
+        attr_proj = self.tranformer(attr_feat)   # (n_way, img_feat_dim)
         lambda_c = self.mixNet(attr_proj)
-
+        # print("lambda_c = ", lambda_c)
         # print("img_feat.shape = ", img_feat.shape)
         z_support, z_query  = self.parse_feature(img_feat ,is_feature)     # the shape of z is [n_data, n_dim]
         # print('model.n_shot = ', self.n_support)
