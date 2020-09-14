@@ -24,6 +24,25 @@ class Timer():
 def one_hot(y, num_class):         
     return torch.zeros((len(y), num_class)).scatter_(1, y.unsqueeze(1), 1)
 
+
+
+def euclidean_dist(x, y):
+    # x: N x D
+    # y: M x D
+    n = x.size(0)
+    m = y.size(0)
+    d = x.size(1)
+    # print("x.shape = ", x.shape)
+    # print("y.shape = ", y.shape)
+    assert d == y.size(1)
+
+    x = x.unsqueeze(1).expand(n, m, d)
+    y = y.unsqueeze(0).expand(n, m, d)
+
+    return torch.pow(x - y, 2).sum(2)
+
+
+
 def DBindex(cl_data_file):
     class_list = cl_data_file.keys()
     cl_num= len(class_list)

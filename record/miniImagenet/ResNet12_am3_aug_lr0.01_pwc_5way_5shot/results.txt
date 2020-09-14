@@ -1,0 +1,6 @@
+Time: 20200912-045837, Setting: miniImagenet-base-ResNet12-am3-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 52.32% +- 0.86% 
+Time: 20200912-050044, Setting: miniImagenet-val-ResNet12-am3-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 97.93% +- 0.15% 
+Time: 20200912-050250, Setting: miniImagenet-novel-ResNet12-am3-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 53.66% +- 0.70% 
+Time: 20200914-021328, Setting: miniImagenet-base-ResNet12-am3-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 54.23% +- 0.82% 
+Time: 20200914-021536, Setting: miniImagenet-val-ResNet12-am3-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 90.69% +- 0.48% 
+Time: 20200914-021744, Setting: miniImagenet-novel-ResNet12-am3-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 53.31% +- 0.68% 

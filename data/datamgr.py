@@ -6,6 +6,7 @@ import numpy as np
 import torchvision.transforms as transforms
 import data.additional_transforms as add_transforms
 from data.dataset import SimpleDataset, MultiModalDataset, SetDataset, EpisodicBatchSampler, EpisodicMultiModalSampler
+from data.dataset_npy import MiniImgDataset
 from abc import abstractmethod
 
 class TransformLoader:
@@ -56,7 +57,18 @@ class SimpleDataManager(DataManager):
 
     def get_data_loader(self, data_file, aug): #parameters that would change on train/val set
         transform = self.trans_loader.get_composed_transform(aug)
-        dataset = SimpleDataset(data_file, transform)
+
+        if 'miniImagenet' in data_file:
+            # trans_map = {"base":'train', 'val':'val', "novel":'test'}
+            if 'base' in data_file:
+                split = 'base'
+            else:
+                split = 'val' if 'val' in data_file else 'novel'
+            # print('split = ', split)
+            dataset = MiniImgDataset(split, transform, aux=False)
+        else:
+            dataset = SimpleDataset(data_file, transform)
+
         data_loader_params = dict(batch_size = self.batch_size, shuffle = True, num_workers = 12, pin_memory = True)       
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
 
@@ -71,23 +83,36 @@ class SetDataManager(DataManager):
         self.batch_size = n_support + n_query
         self.n_episode = n_episode
         self.trans_loader = TransformLoader(image_size)
-
         self.aux = aux   # use attribute
-
+        
     def get_data_loader(self, data_file, aug): #parameters that would change on train/val set
         transform = self.trans_loader.get_composed_transform(aug)
-
+        # print('data_file = ', data_file)
         if not self.aux:     # only image feature
-            dataset = SetDataset( data_file , self.batch_size, transform )
-            sampler = EpisodicBatchSampler(len(dataset), self.n_way, self.n_episode )
+            # read from npy according to am3, only for mini-imagenet
+            if 'miniImagenet' in data_file:
+                # trans_map = {"base":'train', 'val':'val'}
+                split = 'base' if 'base' in data_file else 'val'
+                dataset = MiniImgDataset(split, transform, self.aux)
+                sampler = EpisodicMultiModalSampler(dataset.label, self.n_way, self.batch_size, self.n_episode)
+            else:
+                dataset = SimpleDataset(data_file, transform)
+                sampler = EpisodicMultiModalSampler(dataset.label, self.n_way, self.batch_size, self.n_episode)
             data_loader_params = dict(batch_sampler = sampler,  num_workers = 12, pin_memory = True)       
             # data_loader_params = dict(batch_sampler = sampler,  num_workers = 1, pin_memory = True)       
             data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
 
         else: # use attribute word vector
-            img_file, attr_file = data_file
-            dataset = MultiModalDataset(img_file, attr_file, transform)
-            sampler = EpisodicMultiModalSampler(dataset.label, self.n_way, self.batch_size, self.n_episode)
+            if 'miniImagenet' in data_file[0]:
+                # trans_map = {"base":'train', 'val':'val'}
+                split = 'base' if 'base' in data_file else 'val'
+                dataset = MiniImgDataset(split, transform, self.aux)
+                sampler = EpisodicMultiModalSampler(dataset.label, self.n_way, self.batch_size, self.n_episode)
+
+            else:
+                img_file, attr_file = data_file
+                dataset = MultiModalDataset(img_file, attr_file, transform)
+                sampler = EpisodicMultiModalSampler(dataset.label, self.n_way, self.batch_size, self.n_episode)
 
             data_loader_params = dict(batch_sampler = sampler,  num_workers = 12, pin_memory = True)       
             data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)

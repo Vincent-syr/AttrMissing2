@@ -1,0 +1,6 @@
+Time: 20200912-221906, Setting: CUB-base-ResNet12-am3-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 85.68% +- 0.64% 
+Time: 20200912-221924, Setting: CUB-val-ResNet12-am3-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 72.74% +- 0.78% 
+Time: 20200912-221943, Setting: CUB-novel-ResNet12-am3-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 75.22% +- 0.71% 
+Time: 20200914-020939, Setting: CUB-base-ResNet12-am3-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 85.69% +- 0.61% 
+Time: 20200914-020958, Setting: CUB-val-ResNet12-am3-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 72.70% +- 0.82% 
+Time: 20200914-021016, Setting: CUB-novel-ResNet12-am3-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 74.30% +- 0.78% 

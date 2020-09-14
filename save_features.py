@@ -21,17 +21,19 @@ def save_features(model, data_loader, outfile):
     all_labels = f.create_dataset('all_labels',(max_count,), dtype='i')
     all_feats=None
     count=0
-    for i, (x,y) in enumerate(data_loader):
-        if i%10 == 0:
-            print('{:d}/{:d}'.format(i, len(data_loader)))
-        x = x.cuda()
-        x_var = Variable(x)
-        feats = model(x_var)
-        if all_feats is None:
-            all_feats = f.create_dataset('all_feats', [max_count] + list( feats.size()[1:]) , dtype='f')
-        all_feats[count:count+feats.size(0)] = feats.data.cpu().numpy()
-        all_labels[count:count+feats.size(0)] = y.cpu().numpy()
-        count = count + feats.size(0)
+    
+    with torch.no_grad():
+        for i, (x,y) in enumerate(data_loader):
+            if i%10 == 0:
+                print('{:d}/{:d}'.format(i, len(data_loader)))
+            x = x.cuda()
+            x_var = Variable(x)
+            feats = model.forward(x_var)
+            if all_feats is None:
+                all_feats = f.create_dataset('all_feats', [max_count] + list( feats.size()[1:]) , dtype='f')
+            all_feats[count:count+feats.size(0)] = feats.data.cpu().numpy()
+            all_labels[count:count+feats.size(0)] = y.cpu().numpy()
+            count = count + feats.size(0)
 
     count_var = f.create_dataset('count', (1,), dtype='i')
     count_var[0] = count
@@ -43,26 +45,29 @@ if __name__ == '__main__':
     params = parse_args('save_features')
     print(params)
 
-    image_size = 224
-    aux = params.aux
-    # split = params.split   # split == novel
+    if params.dataset == 'CUB':
+        image_size = 224
+    elif params.dataset == 'miniImagenet':
+        image_size = 84
+    print('image_size = ', image_size)
+
     loadfile_list = [configs.data_dir[params.dataset] + 'base.json', configs.data_dir[params.dataset] + 'val.json', configs.data_dir[params.dataset] + 'novel.json']
     split_list = ['base', 'val', 'novel']
     # loadfile = configs.data_dir[params.dataset] + split + '.json'
     params.checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(configs.save_dir, params.dataset, params.model, params.method)
     if params.train_aug:
         params.checkpoint_dir += '_aug'
-    if aux:
-        params.checkpoint_dir += '_aux'
+    params.checkpoint_dir += '_lr%s_%s' % (str(params.init_lr), params.lr_anneal)
+
     if not params.method  in ['baseline', 'baseline++']: 
         params.checkpoint_dir += '_%dway_%dshot' %( params.train_n_way, params.n_shot)
-        
-    modelfile   = get_best_file(params.checkpoint_dir)
+    params.model_dir = os.path.join(params.checkpoint_dir, 'model')
+
     model = model_dict[params.model]()    # resnet10
     model = model.cuda()
 
-
     # load pre-trained model
+    modelfile   = get_best_file(params.model_dir)
     tmp = torch.load(modelfile)
     state = tmp['state']
     state_keys = list(state.keys())
@@ -79,7 +84,9 @@ if __name__ == '__main__':
     for i, loadfile in enumerate(loadfile_list):   # base, val, novel
         
         outfile = os.path.join(params.checkpoint_dir.replace("checkpoints","features"), split_list[i] + '_best' + ".hdf5")  # './features/miniImagenet/Conv4_baseline_aug/novel.hdf5'
+        print('outfile = ', outfile)
         datamgr         = SimpleDataManager(image_size, batch_size = 64)
+
         data_loader      = datamgr.get_data_loader(loadfile, aug = False)
 
         dirname = os.path.dirname(outfile)

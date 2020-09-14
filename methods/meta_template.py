@@ -8,11 +8,13 @@ import utils
 from abc import abstractmethod
 
 class MetaTemplate(nn.Module):
-    def __init__(self, model_func, n_way, n_support, change_way = True):
+# class MetaTemplate(nn.DataParallel):
+    def __init__(self, model_func, n_way, n_support, n_query, change_way = True):
         super(MetaTemplate, self).__init__()
         self.n_way      = n_way
         self.n_support  = n_support
-        self.n_query    = -1 #(change depends on input) 
+        # self.n_query    = -1 #(change depends on input) 
+        self.n_query    = n_query
         self.feature    = model_func()
         self.feat_dim   = self.feature.final_feat_dim
         self.change_way = change_way  #some methods allow different_way classification during training and test
@@ -70,9 +72,10 @@ class MetaTemplate(nn.Module):
                 x[1] = x[1].view(self.n_way, -1, x[1].shape[-1])
                 # print("x[0].shape = ", x[0].shape)
                 # print("x[1].shape = ", x[1].shape)
-                self.n_query = x[0].size(1) - self.n_support
+                # self.n_query = x[0].size(1) - self.n_support
             else:
-                self.n_query = x.size(1) - self.n_support           
+                # self.n_query = x.size(1) - self.n_support           
+                pass
 
 
             # if self.change_way:
@@ -103,10 +106,10 @@ class MetaTemplate(nn.Module):
                 x[1] = x[1].view(self.n_way, -1, x[1].shape[-1]).cuda()
                 # print("x[0].shape = ", x[0].shape)
                 # print("x[1].shape = ", x[1].shape)
-                self.n_query = x[0].size(1) - self.n_support
+                # self.n_query = x[0].size(1) - self.n_support
             else:
                 x = x.cuda()
-                self.n_query = x.size(1) - self.n_support        
+                # self.n_query = x.size(1) - self.n_support        
 
             # if self.change_way:
             #     self.n_way  = x.size(0)

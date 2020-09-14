@@ -12,6 +12,9 @@ class SimpleDataset:
     def __init__(self, data_file, transform, target_transform=identity):
         with open(data_file, 'r') as f:
             self.meta = json.load(f)
+        self.data = self.meta['image_names']
+        self.label = self.meta['image_labels']
+
         self.transform = transform
         self.target_transform = target_transform
 
@@ -34,7 +37,8 @@ class MultiModalDataset:
         self.data = self.meta['image_names']
         self.label = self.meta['image_labels']
 
-        self.attr_file = attr_file
+        self.attr_all = torch.from_numpy(np.load(attr_file))
+
         self.transform = transform
         self.target_transform = target_transform  # for label y
 
@@ -45,8 +49,7 @@ class MultiModalDataset:
         img = Image.open(image_path).convert('RGB')
         img = self.transform(img)
 
-        attr_all = torch.from_numpy(np.load(self.attr_file))
-        attr = attr_all[self.meta['image_labels'][i]]   # only a category
+        attr = self.attr_all[self.meta['image_labels'][i]]   # only a category
 
         target = self.target_transform(self.label[i])
         return (img, attr), target
@@ -119,6 +122,8 @@ class EpisodicBatchSampler(object):
 
 
 
+
+
 class EpisodicMultiModalSampler(object):
     def __init__(self, label, n_way, n_per, n_episodes):   
         self.n_episodes = n_episodes
@@ -132,7 +137,6 @@ class EpisodicMultiModalSampler(object):
             ind = torch.from_numpy(ind)
             self.m_ind.append(ind)     
 
-
     def __len__(self):
         return self.n_episodes
 
@@ -144,7 +148,7 @@ class EpisodicMultiModalSampler(object):
             batch = []
             classes = torch.randperm(len(self.m_ind))[:self.n_way]
             for c in classes:
-                l = self.m_ind[c]
+                l = self.m_ind[c]  # all samples of c class
                 pos = torch.randperm(len(l))[:self.n_per]
                 batch.append(l[pos])
             # batch = torch.stack(batch).t().reshape(-1)

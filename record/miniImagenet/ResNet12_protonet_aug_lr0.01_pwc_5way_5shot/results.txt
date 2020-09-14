@@ -1,0 +1,4 @@
+
+Time: 20200912-044938, Setting: miniImagenet-base-ResNet12-protonet-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 78.66% +- 0.72% 
+Time: 20200912-045143, Setting: miniImagenet-val-ResNet12-protonet-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 66.68% +- 0.70% 
+Time: 20200912-045350, Setting: miniImagenet-novel-ResNet12-protonet-aug 5shot 5way_train 5way_test, Acc: 600 Test Acc = 66.68% +- 0.66% 

@@ -103,6 +103,8 @@ class Model(nn.Module):
 
             if iters % print_freq==0 and iters>0:
                 losses.append(loss)
+                
+            # break
 
         return losses
 
@@ -116,6 +118,12 @@ class Model(nn.Module):
         syn_acc_all = []
         raw_acc_all = []
         miss_acc_all = []
+        none_acc_all = []
+
+        lam_raw_all = []
+        lam_syn_all = []
+        lam_miss_all = []
+        lam_none_all = []
         iter_num = self.n_episodes
 
         # turn into val mode
@@ -131,20 +139,24 @@ class Model(nn.Module):
             attr_feat = data_from_modalities[1].cuda()     # (n*b, f2)
             
             syn_idx = torch.randperm(img_feat.shape[0])[:int(miss_rate*img_feat.shape[0])]    # (n2)
-            tmp_attr = self.generate_attr(img_feat[syn_idx])    # (n2, f2)
+            tmp_attr = self.generate_attr(img_feat[syn_idx])                         # (n2, f2)
             # synthesis attr and raw attr use for validation test
             raw_attr = copy.deepcopy(attr_feat)
             syn_attr = copy.deepcopy(attr_feat)
             syn_attr[syn_idx] = tmp_attr
 
-            miss_attr = copy.deepcopy(attr_feat)
-            tmp_zero = torch.zeros(len(syn_idx), attr_feat.shape[-1])
+            miss_attr = copy.deepcopy(attr_feat)                                   # (n*b, f2)
+            tmp_zero = torch.zeros(len(syn_idx), attr_feat.shape[-1]).cuda()
             miss_attr[syn_idx] = tmp_zero
+            none_attr = torch.zeros(raw_attr.size()).cuda()
+            # print('none_attr.shape = ', none_attr.shape)
 
 
-            syn_attr_exp = torch.unsqueeze(syn_attr, 1).expand(-1, img_feat.shape[1], -1)   # (n*b, k+q, f2)
-            raw_attr_exp = torch.unsqueeze(raw_attr, 1).expand(-1, img_feat.shape[1], -1)
-            miss_attr_exp = torch.unsqueeze(miss_attr, 1).expand(-1, img_feat.shape[1], -1)
+            # syn_attr_exp = torch.unsqueeze(syn_attr, 1).expand(-1, img_feat.shape[1], -1)   # (n*b, k+q, f2)
+            # raw_attr_exp = torch.unsqueeze(raw_attr, 1).expand(-1, img_feat.shape[1], -1)
+            # miss_attr_exp = torch.unsqueeze(miss_attr, 1).expand(-1, img_feat.shape[1], -1)
+            # none_attr_exp = torch.unsqueeze(none_attr, 1).expand(-1, img_feat.shape[1], -1)
+
             # print("img_feat.shape = ", img_feat.shape)
             # print('syn_attr_exp.shape = ', syn_attr_exp.shape)
 
@@ -155,34 +167,61 @@ class Model(nn.Module):
 
 
 
+                # z_all, lambda_c, attr_proj = model.forward(x)
+                # scores = model.compute_score(z_all, lambda_c, attr_proj)
+                # correct_this, count_this = model.correct(scores)
+            # syn_correct, syn_count = fsl_model.correct([img_feat, syn_attr], is_feature=True)
+            # raw_correct, raw_count = fsl_model.correct([img_feat, raw_attr], is_feature=True)
+            # miss_correct, miss_count = fsl_model.correct([img_feat, miss_attr], is_feature=True)
+            # none_correct, none_count = fsl_model.correct([img_feat, none_attr], is_feature=True)
+            # print('img.shape', img_feat.shape)
+            # print('syn_attr.shape', syn_attr.shape)
+            syn_correct, syn_count = fsl_model.correct_quick([img_feat, syn_attr])
+            raw_correct, raw_count = fsl_model.correct_quick([img_feat, raw_attr])
+            miss_correct, miss_count = fsl_model.correct_quick([img_feat, miss_attr])
+            none_correct, none_count = fsl_model.correct_quick([img_feat, none_attr])
 
-            syn_correct, syn_count = fsl_model.correct([img_feat, syn_attr_exp], is_feature=True)
-            raw_correct, raw_count = fsl_model.correct([img_feat, raw_attr_exp], is_feature=True)
-            miss_correct, miss_count = fsl_model.correct([img_feat, miss_attr_exp], is_feature=True)
+
+            lam_syn_all.append(fsl_model.get_coef(syn_attr))
+            lam_raw_all.append(fsl_model.get_coef(raw_attr))
+            lam_miss_all.append(fsl_model.get_coef(miss_attr))
+            lam_none_all.append(fsl_model.get_coef(none_attr))
 
             syn_acc_all.append( syn_correct / syn_count * 100 )
             raw_acc_all.append( raw_correct / raw_count * 100 )
             miss_acc_all.append(miss_correct / miss_count * 100)
+            none_acc_all.append(none_correct / none_count * 100)
 
-        syn_acc_all  = np.asarray(syn_acc_all)
-        raw_acc_all  = np.asarray(raw_acc_all)
-        miss_acc_all  = np.asarray(miss_acc_all)
+        # syn_acc_all  = np.asarray(syn_acc_all)
+        # raw_acc_all  = np.asarray(raw_acc_all)
+        # miss_acc_all  = np.asarray(miss_acc_all)
+        # none_acc_all = np.asarray(none_acc_all)
 
+        mean_lam_syn = np.mean(np.asarray(lam_syn_all))
+        mean_lam_raw = np.mean(np.asarray(lam_raw_all))
+        mean_lam_miss = np.mean(np.asarray(lam_miss_all))
+        mean_lam_none = np.mean(np.asarray(lam_none_all))
 
-        syn_acc_mean = np.mean(syn_acc_all)
-        raw_acc_mean = np.mean(raw_acc_all)
-        miss_acc_mean = np.mean(miss_acc_all)
+        syn_acc_mean = np.mean(np.asarray(syn_acc_all))
+        raw_acc_mean = np.mean(np.asarray(raw_acc_all))
+        miss_acc_mean = np.mean(np.asarray(miss_acc_all))
+        none_acc_mean = np.mean(np.asarray(none_acc_all))
 
         syn_acc_std  = np.std(syn_acc_all)
         raw_acc_std  = np.std(raw_acc_all)
         miss_acc_std  = np.std(miss_acc_all)
-
+        none_acc_std = np.std(none_acc_all)
 
         print('%d Syn_Attribute: Test Acc = %4.2f%% +- %4.2f%%' %(iter_num,  syn_acc_mean, 1.96* syn_acc_std/np.sqrt(iter_num)))
         print('%d Raw_Attribute: Test Acc = %4.2f%% +- %4.2f%%' %(iter_num,  raw_acc_mean, 1.96* raw_acc_std/np.sqrt(iter_num)))
         print('%d Miss_Attribute: Test Acc = %4.2f%% +- %4.2f%%' %(iter_num,  miss_acc_mean, 1.96* miss_acc_std/np.sqrt(iter_num)))
+        print('%d None_Attribute: Test Acc = %4.2f%% +- %4.2f%%' %(iter_num,  none_acc_mean, 1.96* none_acc_std/np.sqrt(iter_num)))
 
-        return syn_acc_mean, raw_acc_mean, miss_acc_mean
+
+        print('syn_lambda=%.2f || raw_lambda=%.2f ||  miss_lambda=%.2f ||  none_lambda=%.2f' % (mean_lam_syn, mean_lam_raw, mean_lam_miss, mean_lam_none))
+
+        # return syn_acc_mean, raw_acc_mean, miss_acc_mean
+        return syn_acc_mean, raw_acc_mean, miss_acc_mean, none_acc_mean, (mean_lam_syn, mean_lam_raw, mean_lam_miss, mean_lam_none)
 
 
     def generate_attr(self, img):

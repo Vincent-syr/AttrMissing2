@@ -3,6 +3,8 @@
 __pycache__/
 .idea/
 features/
+checkpoints/
+backup/
 runs/
 *.jpg
 *.tar

@@ -11,23 +11,25 @@ import data.feature_loader as feat_loader
 
 
 class DATA_LOADER(object):
-    def __init__(self, dataset, data_file, attr_file, n_way=5, k_shot=5, aux_datasource='attributes'):
+    def __init__(self, dataset, data_file, attr_file, n_way, k_shot):
 
-        self.dataset = dataset
-        self.auxiliary_data_source = aux_datasource   # attribute
-        self.all_data_sources = ['resnet_features'] + [self.auxiliary_data_source]
+        # self.dataset = dataset
+        # self.auxiliary_data_source = aux_datasource   # attribute
+        # self.all_data_sources = ['resnet_features'] + [self.auxiliary_data_source]
 
         self.k_shot = k_shot
         self.n_way = n_way
         self.cl_data_file = feat_loader.init_loader(data_file)
         self.class_unique = list(self.cl_data_file.keys())
         if attr_file:
-            self.aux_data = torch.from_numpy(np.load(attr_file))
-            self.attr_dim = self.aux_data.shape[1]
             self.aux = True
+            if dataset == 'CUB':
+                self.aux_data = torch.from_numpy(np.load(attr_file))
+            elif dataset == 'miniImagenet':
+                self.aux_data = torch.from_numpy(np.load(attr_file)['features'].astype('float32'))
+            self.attr_dim = self.aux_data.shape[1]
         else:
             self.aux = False
-
         tmp = self.cl_data_file[self.class_unique[0]][0]
         self.img_dim = len(tmp)
 

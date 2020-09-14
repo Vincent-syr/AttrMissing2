@@ -331,22 +331,22 @@ class ResNet(nn.Module):
         super(ResNet,self).__init__()
         assert len(list_of_num_layers)==4, 'Can have only four stages'
         if self.maml:
-            conv1 = Conv2d_fw(3, 64, kernel_size=7, stride=2, padding=3,
+            self.conv1 = Conv2d_fw(3, 64, kernel_size=7, stride=2, padding=3,
                                                bias=False)
-            bn1 = BatchNorm2d_fw(64)
+            self.bn1 = BatchNorm2d_fw(64)
         else:
-            conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
+            self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                                bias=False)
-            bn1 = nn.BatchNorm2d(64)
+            self.bn1 = nn.BatchNorm2d(64)
 
-        relu = nn.ReLU()
-        pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.relu = nn.ReLU()
+        self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        init_layer(conv1)
-        init_layer(bn1)
+        init_layer(self.conv1)
+        init_layer(self.bn1)
 
-
-        trunk = [conv1, bn1, relu, pool1]
+        trunk = []
+        # trunk = [conv1, bn1, relu, pool1]
 
         indim = 64
         for i in range(4):
@@ -368,8 +368,114 @@ class ResNet(nn.Module):
         self.trunk = nn.Sequential(*trunk)
 
     def forward(self,x):
-        out = self.trunk(x)
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        out = self.pool1(out)
+        out = self.trunk(out)
         return out
+
+
+# h = build_simple_res_net(images, flags=flags, num_filters=num_filters, beta=beta, gamma=gamma,
+#                          is_training=is_training, reuse=reuse, scope=scope)
+# num_filters = [round(flags.num_filters * pow(flags.block_size_growth, i)) for i in range(flags.num_blocks)]
+# flags.num_filters=64, block_size_growth=2.0, num_blocks', type=int, default=4
+
+
+class Swish(nn.Module):
+    def __init__(self):
+        super(Swish, self).__init__()
+
+    def forward(self, x):
+        self.eval()
+        x = x * F.sigmoid(x)
+        return x
+
+
+ACTIVATION_MAP = {"relu": nn.ReLU,
+                  "swish-a": Swish
+                  }
+
+
+
+# num_filters = [64,128,256,512]
+
+
+class Res12Block(nn.Module):
+    def __init__(self, indim, outdim, activation_fn):
+        """
+        :param indim:
+        :param outdim:
+        :param num_units_in_block: form like nn.ReLU, a class, not a instance
+        :param activation_fn:
+        """
+        super(Res12Block, self).__init__()
+        self.act = activation_fn()
+        self.conv1 = nn.Conv2d(indim, outdim, kernel_size=3, stride=1, padding=1)
+        self.block = nn.Sequential(
+            nn.Conv2d(indim, outdim, kernel_size=3, stride=1, padding=1),
+            activation_fn(),
+            nn.Conv2d(outdim, outdim, kernel_size=3, stride=1, padding=1),
+            activation_fn(),
+            nn.Conv2d(outdim, outdim, kernel_size=3, stride=1, padding=1),
+        )
+
+
+    def forward(self, x):
+        shortcut = self.conv1(x)
+        # print("shotcut.shape = ", shortcut.shape)
+        out = self.block(x)
+        # print("out.shape = ", out.shape)
+        out = out + shortcut
+        out = self.act(out)
+
+        return out
+
+
+
+class ResNet12(nn.Module):
+    """
+    total param: 32. it include 4 Res12Block, each Res12Block contains 8 params--4 weight and 4 bias
+    """
+    def __init__(self):
+        super(ResNet12, self).__init__()
+        # activation = 'swish-a'
+        activation = 'relu'
+        self.embedding_pooled = True
+        self.num_max_pools = 3
+        num_filters = [3, 64, 128, 256, 512]
+        act = ACTIVATION_MAP[activation]
+        self.activation_fn = act()
+
+        trunk = []
+        for i in range(1, len(num_filters)):
+            trunk.append(Res12Block(num_filters[i-1], num_filters[i], act))
+
+        self.final_feat_dim = 512
+
+        self.trunk = nn.Sequential(*trunk)
+
+    def forward(self, x):
+        """
+        test with cub
+        :param x:  (N, 3, 224,224)
+        :return: out, (N ,512)
+        """
+
+        for i,block in enumerate(self.trunk):
+            x = block(x)
+            # print(x.shape)
+            if i < self.num_max_pools:
+                x = F.max_pool2d(x, kernel_size=2, stride=2,padding=1)
+            # print("forward, ", x.shape)
+        if self.embedding_pooled:
+            kernel_size = x.shape[-2]
+            x = F.avg_pool2d(x, kernel_size=kernel_size)
+        # print(x.shape)
+        out = x.view(x.shape[0], -1)
+
+        return out
+
 
 def Conv4():
     return ConvNet(4)
@@ -389,19 +495,23 @@ def Conv4S():
 def Conv4SNP():
     return ConvNetSNopool(4)
 
-def ResNet10(flatten = True):
+def ResNet12_func():
+    return ResNet12()
+
+
+def ResNet10(flatten = True):  # param: 32
     return ResNet(SimpleBlock, [1,1,1,1],[64,128,256,512], flatten)
 
-def ResNet18( flatten = True):
+def ResNet18( flatten = True):  # param: 60
     return ResNet(SimpleBlock, [2,2,2,2],[64,128,256,512], flatten)
 
-def ResNet34( flatten = True):
+def ResNet34( flatten = True): # param: 108
     return ResNet(SimpleBlock, [3,4,6,3],[64,128,256,512], flatten)
 
-def ResNet50( flatten = True):
+def ResNet50( flatten = True): # param: 167
     return ResNet(BottleneckBlock, [3,4,6,3], [256,512,1024,2048], flatten)
 
-def ResNet101( flatten = True):
+def ResNet101( flatten = True): # param: 337
     return ResNet(BottleneckBlock, [3,4,23,3],[256,512,1024,2048], flatten)
 
 
