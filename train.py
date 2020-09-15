@@ -32,9 +32,9 @@ def adjust_learning_rate(params, optimizer, epoch, init_lr):
         pass
     elif params.lr_anneal == 'pwc':
         for param_group in optimizer.param_groups:
-            if epoch==200:
+            if epoch >=200 and epoch < 250:
                 param_group['lr'] = init_lr*0.1
-            elif epoch==250:
+            elif epoch>=250:
                 param_group['lr'] = init_lr*0.01
             # elif epoch ==300:
             #     param_group['lr'] = init_lr*0.001
@@ -227,6 +227,8 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
     writer = SummaryWriter(log_dir=writer_dir)
     # %%
     for epoch in range(start_epoch,stop_epoch):
+        adjust_learning_rate(params, optimizer, epoch, init_lr)
+
         model.train()
         start = time.time()
         cum_loss=0
@@ -273,6 +275,7 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
         writer.add_scalar('train_acc', acc_mean, epoch)
         trlog['train_loss'].append(avg_loss)
         trlog['train_acc'].append(acc_mean)
+        trlog['epoch'].append(epoch)
         torch.cuda.empty_cache()
 
         # %%
@@ -315,13 +318,21 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
 
             print("best model! save...")
             outfile = os.path.join(params.model_dir, 'best_model.tar')
-            torch.save({'epoch':epoch, 'state':model.module.state_dict(), 'max_acc':max_acc}, outfile)
+            # https://docs.python.org/zh-cn/3/tutorial/errors.html
+            try:
+                torch.save({'epoch':epoch, 'state':model.module.state_dict(), 'max_acc':max_acc}, outfile)
+            except Exception as inst:
+                print(inst) 
 
         # save model and trlog regularly
         if (epoch % params.save_freq==0) or (epoch==stop_epoch-1):
             outfile = os.path.join(params.model_dir, '{:d}.tar'.format(epoch))
-            torch.save({'epoch':epoch, 'state':model.module.state_dict(), 'max_acc': max_acc}, outfile)
-            torch.save(trlog, trlog_path)
+            try:
+                torch.save({'epoch':epoch, 'state':model.module.state_dict(), 'max_acc':max_acc}, outfile)
+                torch.save(trlog, trlog_path)
+
+            except Exception as inst:
+                print(inst)             
 
         torch.cuda.empty_cache()  
         # best epoch and val acc
@@ -331,7 +342,6 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
 
         print('epoch: ', epoch, 'lr: ', optimizer.param_groups[0]['lr'])
         trlog['lr'].append(optimizer.param_groups[0]['lr'])
-        adjust_learning_rate(params, optimizer, epoch, init_lr)
         # %%
     writer.close()
     # save_fig(trlog_path)
@@ -358,6 +368,7 @@ if __name__=='__main__':
         attr_file = configs.data_dir[params.dataset] + 'attr_array.npy'
         base_file = [base_file, attr_file]
         val_file = [val_file, attr_file]
+        
     if params.dataset == 'CUB':
         image_size = 224
         word_dim = 312
@@ -373,6 +384,9 @@ if __name__=='__main__':
     # train_few_shot_params    = dict(n_way = params.train_n_way, n_support = params.n_shot) 
     train_few_shot_params   = dict(n_way = params.train_n_way, n_support = params.n_shot, n_query=params.n_query) 
 
+    # print('base_file = ', base_file)
+    # exit(0)
+
     base_datamgr            = SetDataManager(image_size, aux=aux, n_episode=params.n_episode, **train_few_shot_params)
     base_loader             = base_datamgr.get_data_loader( base_file , aug = params.train_aug )
         
@@ -387,11 +401,6 @@ if __name__=='__main__':
         model = AM3(model_dict[params.model], params=params, word_dim=word_dim,  **train_few_shot_params)
     else:
         raise ValueError('Unknown method')
-
-    # if torch.cuda.device_count() > 1:
-    model = torch.nn.DataParallel(model, device_ids = range(torch.cuda.device_count()))  
-    print('gpu device: ', list(range(torch.cuda.device_count())))
-
     model = model.cuda()
 
     params.checkpoint_dir = '%s/checkpoints/%s/%s_%s' %(configs.save_dir, params.dataset, params.model, params.method)
@@ -415,9 +424,10 @@ if __name__=='__main__':
     stop_epoch = params.stop_epoch
 
     max_acc = 0
-    if params.resume:
+    # if params.resume:
+    if params.start_epoch != 0:
         # resume_file = get_resume_file(params.checkpoint_dir)
-        resume_file = os.path.join(params.checkpoint_dir, str(params.start_epoch) +'.tar')
+        resume_file = os.path.join(params.model_dir, str(params.start_epoch) +'.tar')
         # print(resume_file)
         if resume_file is not None:
             tmp = torch.load(resume_file)
@@ -425,6 +435,11 @@ if __name__=='__main__':
             if 'max_acc' in tmp:
                 max_acc = tmp['max_acc']
             model.load_state_dict(tmp['state'])
+            print('resume training')
+    
+    # if torch.cuda.device_count() > 1:
+    model = torch.nn.DataParallel(model, device_ids = range(torch.cuda.device_count()))  
+    print('gpu device: ', list(range(torch.cuda.device_count())))
 
     model = train_multi_gpu(base_loader, val_loader,  model, start_epoch, stop_epoch, params, max_acc)
 

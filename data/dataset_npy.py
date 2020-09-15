@@ -13,6 +13,8 @@ class MiniImgDataset:
         data_dir = '/test/0Dataset_others/Dataset/mini-imagenet-am3'
         img_path = os.path.join(data_dir, 'few-shot-{:}.npz'.format(split))
         attr_path = os.path.join(data_dir, 'few-shot-wordemb-{:}.npz'.format(split))
+        print("img_path = ", img_path)
+        print('attr_path = ',attr_path)
         self.attr_all = None
         self.aux = aux
         if aux:

@@ -92,7 +92,10 @@ class SetDataManager(DataManager):
             # read from npy according to am3, only for mini-imagenet
             if 'miniImagenet' in data_file:
                 # trans_map = {"base":'train', 'val':'val'}
-                split = 'base' if 'base' in data_file else 'val'
+                if 'base' in data_file:
+                    split = 'base'
+                else:
+                    split = 'val' if 'val' in data_file else 'novel'
                 dataset = MiniImgDataset(split, transform, self.aux)
                 sampler = EpisodicMultiModalSampler(dataset.label, self.n_way, self.batch_size, self.n_episode)
             else:
@@ -105,7 +108,11 @@ class SetDataManager(DataManager):
         else: # use attribute word vector
             if 'miniImagenet' in data_file[0]:
                 # trans_map = {"base":'train', 'val':'val'}
-                split = 'base' if 'base' in data_file else 'val'
+                if 'base' in data_file[0]:
+                    split = 'base'
+                else:
+                    split = 'val' if 'val' in data_file[0] else 'novel'
+
                 dataset = MiniImgDataset(split, transform, self.aux)
                 sampler = EpisodicMultiModalSampler(dataset.label, self.n_way, self.batch_size, self.n_episode)
 

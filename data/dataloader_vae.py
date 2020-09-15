@@ -16,7 +16,8 @@ class DATA_LOADER(object):
         # self.dataset = dataset
         # self.auxiliary_data_source = aux_datasource   # attribute
         # self.all_data_sources = ['resnet_features'] + [self.auxiliary_data_source]
-
+        print('data_file = ', data_file)
+        print('attr_file =', attr_file)
         self.k_shot = k_shot
         self.n_way = n_way
         self.cl_data_file = feat_loader.init_loader(data_file)

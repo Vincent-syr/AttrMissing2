@@ -14,7 +14,6 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-
 def save_features(model, data_loader, outfile):
     f = h5py.File(outfile, 'w')
     max_count = len(data_loader)*data_loader.batch_size
@@ -24,7 +23,7 @@ def save_features(model, data_loader, outfile):
     
     with torch.no_grad():
         for i, (x,y) in enumerate(data_loader):
-            if i%10 == 0:
+            if i%50 == 0:
                 print('{:d}/{:d}'.format(i, len(data_loader)))
             x = x.cuda()
             x_var = Variable(x)
@@ -77,7 +76,7 @@ if __name__ == '__main__':
             state[newkey] = state.pop(key)
         else:
             state.pop(key)
-            
+    
     model.load_state_dict(state)
     model.eval()
     

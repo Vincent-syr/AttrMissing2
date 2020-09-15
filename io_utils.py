@@ -43,7 +43,7 @@ def parse_args(script):
         parser.add_argument('--save_freq'   , default=10, type=int, help='Save frequency')
         parser.add_argument('--start_epoch' , default=0, type=int,help ='Starting epoch')
         parser.add_argument('--stop_epoch'  , default=400, type=int, help ='Stopping epoch') #for meta-learning methods, each epoch contains 100 episodes. The default epoch number is dataset dependent. See train.py
-        parser.add_argument('--resume'      , action='store_true', help='continue from previous trained model with largest epoch')
+        # parser.add_argument('--resume'      , action='store_true', help='continue from previous trained model with largest epoch')
         parser.add_argument('--warmup'      , action='store_true', help='continue from baseline, neglected if resume is true') #never used in the paper
     elif script == 'save_features':
         parser.add_argument('--split'       , default='novel', help='base/val/novel') #default novel, but you can also test base/val class accuracy if you want 
@@ -60,6 +60,7 @@ def parse_args(script):
         parser.add_argument('--split'       , default='novel', help='base/val/novel') #default novel, but you can also test base/val class accuracy if you want 
         parser.add_argument('--save_iter', default=-1, type=int,help ='saved feature from the model trained in x epoch, use the best model if x is -1')
         parser.add_argument('--adaptation'  , action='store_true', help='further adaptation in test time or not')
+        parser.add_argument('--source', default='feature', help='feature|image')
         parser.add_argument('--miss_rate', default=0, type=float,help='missing rate of  attributes in validation')
 
     else:
@@ -73,8 +74,10 @@ def get_trlog(params):
     trlog = {}
     trlog['script'] = 'pre-train'
     trlog['args'] = vars(params)
+    trlog['epoch'] = []
     trlog['train_loss'] = []
     # trlog['val_loss'] = []
+    trlog['lambda'] = []
     trlog['lr'] = []
     trlog['train_acc'] = []
     trlog['val_acc'] = []
@@ -88,6 +91,7 @@ def get_trlog_vae(params):
     trlog = {}
     trlog['script'] = 'train_vae'
     trlog['args'] = vars(params)
+    trlog['epoch'] = []
     trlog['train_loss'] = []
     trlog['lr'] = []
     trlog['syn_acc'] = []
@@ -106,6 +110,7 @@ def get_trlog_test(params):
     trlog = {}
     trlog['script'] = 'test'
     trlog['args'] = vars(params)
+    trlog['epoch'] = []
     trlog['base_acc'] = []
     trlog['val_acc'] = []
     trlog['novel_acc'] = []
@@ -202,17 +207,24 @@ def save_fig(trlog_path):
 
 
     elif trlog['script'] == 'test':
-        acc = trlog['acc']
+        acc = trlog['base_acc']
         x = list(range(len(acc)))
-        plt.plot(x, acc, linewidth = 1.0)
+        l1, = plt.plot(x, trlog['base_acc'], linewidth = 1.0)
+        l2, = plt.plot(x, trlog['val_acc'], linewidth = 1.0)
+        l3, = plt.plot(x, trlog['novel_acc'], linewidth = 1.0)
         plt.title('Test Accuracy')
         plt.xlabel('epoch')
         plt.ylabel('accuracy')
+        plt.legend(handles = [l1,l2,l3], labels=['base_acc','val_acc','novel_acc'],loc = 'best')      
         plt.grid()
         plt.savefig('%s_acc.jpg' % trlog_path)
 
     else:
         raise ValueError('Unknown Script !!')
+
+
+def combine_trlog(trlog_list):
+    pass
 
 
 
