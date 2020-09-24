@@ -42,7 +42,7 @@ def parse_args(script):
         parser.add_argument('--num_classes' , default=200, type=int, help='total number of classes in softmax, only used in baseline') #make it larger than the maximum label value in base class
         parser.add_argument('--save_freq'   , default=10, type=int, help='Save frequency')
         parser.add_argument('--start_epoch' , default=0, type=int,help ='Starting epoch')
-        parser.add_argument('--stop_epoch'  , default=400, type=int, help ='Stopping epoch') #for meta-learning methods, each epoch contains 100 episodes. The default epoch number is dataset dependent. See train.py
+        parser.add_argument('--stop_epoch'  , default=300, type=int, help ='Stopping epoch') #for meta-learning methods, each epoch contains 100 episodes. The default epoch number is dataset dependent. See train.py
         # parser.add_argument('--resume'      , action='store_true', help='continue from previous trained model with largest epoch')
         parser.add_argument('--warmup'      , action='store_true', help='continue from baseline, neglected if resume is true') #never used in the paper
     elif script == 'save_features':
@@ -76,8 +76,8 @@ def get_trlog(params):
     trlog['args'] = vars(params)
     trlog['epoch'] = []
     trlog['train_loss'] = []
-    # trlog['val_loss'] = []
-    trlog['lambda'] = []
+    trlog['attr_ratio'] = []
+    trlog['lambda_c'] = []
     trlog['lr'] = []
     trlog['train_acc'] = []
     trlog['val_acc'] = []
@@ -155,15 +155,35 @@ def save_fig(trlog_path):
         plt.savefig('%s_acc.jpg' % trlog_path)
 
         plt.figure()
+        attr_ratio = trlog['attr_ratio']
+        x = range(len(attr_ratio))
+        plt.plot(x, attr_ratio, linewidth = 1.0)
+        plt.title('Attribute Ratio')
+        plt.grid()
+        plt.savefig('%s_attr_ratio.jpg' % trlog_path)
+
+
+
+        plt.figure()
         lr = trlog['lr']
         x = list(range(len(lr)))
+        plt.subplot('211')
         l1, = plt.plot(x, lr, linewidth = 1.0)
         plt.title('Learning rate')
         plt.xlabel('epoch')
         plt.ylabel('lr')
         plt.grid()
-        plt.savefig('%s_lr.jpg' % trlog_path)
-        
+
+        lambda_c = trlog['lambda_c']
+        x = list(range(len(lambda_c)))
+        plt.subplot('212')
+        l1, = plt.plot(x, lambda_c, linewidth = 1.0)
+
+        plt.title('lambda')
+        plt.xlabel('epoch')
+        plt.ylabel('lambda')
+        plt.grid()
+        plt.savefig('%s_params.jpg' % trlog_path)        
 
 
 

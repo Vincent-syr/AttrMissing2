@@ -8,7 +8,7 @@ from io_utils import save_fig
 
 
 
-trlog_path = '/test/5Mycode/AttrMissing2/checkpoints/miniImagenet/vae_aug_lr0.01_pwc_5way_5shot_0.4missing/trlog/20200915-101814'
+trlog_path = '/test/5Mycode/AttrMissing2/checkpoints/CUB/ResNet12_am3_aug_lr0.01_pwc_5way_5shot/trlog/20200923-224249'
 
 # trlog_path = '/test/5Mycode/AttrMissing2/record/miniImagenet/ResNet12_am3_aug_lr0.01_pwc_5way_5shot/20200914-155652'
 # # trlog = torch.load(trlog_path)

@@ -33,16 +33,18 @@ class AM3(nn.Module):
             nn.Linear(300, self.feature.final_feat_dim)
         )
 
-        self.mixNet = nn.Sequential(
-            nn.Linear(self.feature.final_feat_dim, 300),
-            nn.ReLU(),
-            nn.Dropout(1.0 - params.mlp_dropout),
-            nn.Linear(300, 1),
-            nn.Sigmoid()
-        )
+        # self.mixNet = nn.Sequential(
+        #     nn.Linear(self.feature.final_feat_dim, 300),
+        #     nn.ReLU(),
+        #     nn.Dropout(1.0 - params.mlp_dropout),
+        #     nn.Linear(300, 1),
+        #     nn.Sigmoid()
+        # )
+
+        self.mixNet = nn.Sequential()
 
 
-        
+        self.attr_ratio = None
 
         self.loss_fn = nn.CrossEntropyLoss()
 
@@ -115,7 +117,9 @@ class AM3(nn.Module):
 
         img_feat, attr_feat = x
         attr_proj = self.transformer(attr_feat)   # (n_way, img_feat_dim)
-        lambda_c = self.mixNet(attr_proj)   # (n_way, 1)
+        # lambda_c = self.mixNet(attr_proj)   # (n_way, 1)
+        lambda_c = 0.85 * torch.ones((len(attr_proj), 1)).cuda()
+
         z_all       = self.feature.forward(img_feat)
 
         return z_all, lambda_c, attr_proj
@@ -133,7 +137,15 @@ class AM3(nn.Module):
         z_query     = z_query.contiguous().view(-1, z_query.shape[-1])
         
         img_proto   = z_support.mean(1)   # (n_way, feat_dim)
+
+        
         z_proto = lambda_c * img_proto + (1-lambda_c) * attr_proj
+        
+        z_proto_abs = lambda_c * img_proto.abs() + (1-lambda_c) * attr_proj.abs()
+        self.attr_ratio = ((1-lambda_c) * attr_proj.abs()).mean() / z_proto_abs.mean()
+        # self.attr_ratio = ((1-lambda_c) * attr_proj.abs()).mean() / (img_proto.abs().mean() + )
+
+        # print("attr_ratio = ", self.attr_ratio.data)
         dists = euclidean_dist(z_query, z_proto)
         scores = -dists
         return scores
@@ -153,4 +165,15 @@ class AM3(nn.Module):
         lambda_c = self.mixNet(attr_proj)   # (n_way, 1)
         lambda_c = lambda_c.mean()
         return float(lambda_c)
+
+    # def compute_ratio(self, z_all, lambda_c, attr_proj):
+    #     # img_proto   = z_all.mean(1)   # (n_way, feat_dim)
+    #     z_all       = z_all.view(self.n_way, self.n_support + self.n_query, -1)
+    #     z_support   = z_all[:, :self.n_support]
+    #     img_proto   = z_support.mean(1)   # (n_way, feat_dim)
+
+    #     z_mean = (z_all * (1-lambda_c)).mean()
+    #     attr_mean = (attr_proj * (lambda_c)).mean()
+    #     attr_ratio = attr_mean / (z_mean + attr_mean)
+    #     return attr_ratio
 

@@ -41,7 +41,15 @@ def adjust_learning_rate(params, optimizer, epoch, init_lr):
     
     elif params.lr_anneal == 'exp':
         pass
-        
+
+
+
+    
+
+
+
+
+
 
 def train(base_loader, val_loader, model, start_epoch, stop_epoch, params, max_acc=0):
     """[summary] train with single GPU
@@ -233,6 +241,8 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
         start = time.time()
         cum_loss=0
         acc_all = []
+        lambda_c_list = []
+        attr_ratio_list = []
         iter_num = len(base_loader)
 
         for i, (x,_ ) in enumerate(base_loader, 1):
@@ -244,6 +254,7 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
                 x[1] = x[1].mean(1)   # (n_way, feat_dim)
                 z_all, lambda_c, attr_proj = model.forward(x)
                 scores = model.module.compute_score(z_all, lambda_c, attr_proj)
+                attr_ratio = model.module.attr_ratio
             else:
                 x = x.cuda()
                 z_all = model.forward(x)
@@ -263,11 +274,20 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
             avg_loss = cum_loss/float(i)
 
             acc_all.append(correct_this/ float(count_this)*100)
+            lambda_c_list.append(lambda_c.mean())
+            attr_ratio_list.append(attr_ratio.item())
+
             acc_mean = np.array(acc_all).mean()
             acc_std = np.std(acc_all)
+
             if i % print_freq==0:
-                print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f} | Acc {:.2f}%'.format(epoch, i, len(base_loader), avg_loss, acc_mean))
-        
+                print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f} | Acc {:.2f} | lambda {:.2f}| attr_ratio {:.2f}%'.format(epoch, i, len(base_loader), avg_loss, acc_mean, lambda_c.mean(), attr_ratio))
+                # print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f} | Acc {:.2f}%'.format(epoch, i, len(base_loader), avg_loss, acc_mean))
+
+
+
+        lambda_c_mean = np.array(lambda_c_list).mean()
+        attr_ratio_mean = np.array(attr_ratio_list).mean()
         print('Train Acc = %4.2f%% +- %4.2f%%' %(acc_mean, 1.96* acc_std/np.sqrt(iter_num)))
         end = time.time()
         print("train time = %.2f s" % (end-start))
@@ -276,6 +296,8 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
         trlog['train_loss'].append(avg_loss)
         trlog['train_acc'].append(acc_mean)
         trlog['epoch'].append(epoch)
+        trlog['attr_ratio'].append(attr_ratio_mean)
+        trlog['lambda_c'].append(lambda_c_mean)
         torch.cuda.empty_cache()
 
         # %%
