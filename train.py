@@ -7,8 +7,8 @@ import torch.optim.lr_scheduler as lr_scheduler
 import time
 import os
 import glob
-from tensorboardX import SummaryWriter
-
+# from tensorboardX import SummaryWriter
+import copy
 import configs
 import backbone
 from data.datamgr import SimpleDataManager, SetDataManager
@@ -51,6 +51,9 @@ def adjust_learning_rate(params, optimizer, epoch, init_lr):
 
 
 
+
+
+
 def train(base_loader, val_loader, model, start_epoch, stop_epoch, params, max_acc=0):
     """[summary] train with single GPU
 
@@ -66,7 +69,6 @@ def train(base_loader, val_loader, model, start_epoch, stop_epoch, params, max_a
     Returns:
         [type]: [description]
     """
-# %%
     trlog = get_trlog(params)
     trlog_dir = os.path.join(params.checkpoint_dir, 'trlog')
     if not os.path.isdir(trlog_dir):
@@ -82,14 +84,11 @@ def train(base_loader, val_loader, model, start_epoch, stop_epoch, params, max_a
 
     # max_acc = 0
     timer = Timer()
-    print_freq = 20
+    print_freq = 50
 
     if not os.path.isdir(params.model_dir):
         os.makedirs(params.model_dir)
 
-    tmp = params.checkpoint_dir.split('/')[-1]
-    writer_dir = 'runs/pretrain_%s_%s' % (params.dataset, tmp)
-    writer = SummaryWriter(log_dir=writer_dir)
     # %%
     for epoch in range(start_epoch,stop_epoch):
         model.train()
@@ -124,7 +123,7 @@ def train(base_loader, val_loader, model, start_epoch, stop_epoch, params, max_a
             optimizer.step()
             optimizer.zero_grad()
 
-            cum_loss = cum_loss + loss.data[0]
+            cum_loss = cum_loss + loss.item()
             avg_loss = cum_loss/float(i)
 
             acc_all.append(correct_this/ float(count_this)*100)
@@ -136,8 +135,6 @@ def train(base_loader, val_loader, model, start_epoch, stop_epoch, params, max_a
         print('Train Acc = %4.2f%% +- %4.2f%%' %(acc_mean, 1.96* acc_std/np.sqrt(iter_num)))
         end = time.time()
         print("train time = %.2f s" % (end-start))
-        writer.add_scalar('train_loss', avg_loss, epoch)
-        writer.add_scalar('train_acc', acc_mean, epoch)
         trlog['train_loss'].append(avg_loss)
         trlog['train_acc'].append(acc_mean)
         torch.cuda.empty_cache()
@@ -170,7 +167,6 @@ def train(base_loader, val_loader, model, start_epoch, stop_epoch, params, max_a
             acc_std  = np.std(acc_all)
             print('%d Test Acc = %4.2f%% +- %4.2f%%' %(iter_num,  acc_mean, 1.96* acc_std/np.sqrt(iter_num)))
             # acc = acc_mean
-            writer.add_scalar('val_acc', acc_mean, epoch)
             trlog['val_acc'].append(acc_mean)
 
         end = time.time()
@@ -201,7 +197,6 @@ def train(base_loader, val_loader, model, start_epoch, stop_epoch, params, max_a
         trlog['lr'].append(optimizer.param_groups[0]['lr'])
         adjust_learning_rate(params, optimizer, epoch, init_lr)
         # %%
-    writer.close()
     save_fig(trlog_path)
     return model
 
@@ -230,9 +225,9 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
     if not os.path.isdir(params.model_dir):
         os.makedirs(params.model_dir)
 
-    tmp = params.checkpoint_dir.split('/')[-1]
-    writer_dir = 'runs/pretrain_%s_%s' % (params.dataset, tmp)
-    writer = SummaryWriter(log_dir=writer_dir)
+    # tmp = params.checkpoint_dir.split('/')[-1]
+    # writer_dir = 'runs/pretrain_%s_%s' % (params.dataset, tmp)
+    # writer = SummaryWriter(log_dir=writer_dir)
     # %%
     for epoch in range(start_epoch,stop_epoch):
         adjust_learning_rate(params, optimizer, epoch, init_lr)
@@ -242,7 +237,8 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
         cum_loss=0
         acc_all = []
         lambda_c_list = []
-        attr_ratio_list = []
+        # attr_ratio_list = []
+        img_ratio_list = []
         iter_num = len(base_loader)
 
         for i, (x,_ ) in enumerate(base_loader, 1):
@@ -254,7 +250,8 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
                 x[1] = x[1].mean(1)   # (n_way, feat_dim)
                 z_all, lambda_c, attr_proj = model.forward(x)
                 scores = model.module.compute_score(z_all, lambda_c, attr_proj)
-                attr_ratio = model.module.attr_ratio
+                # attr_ratio = model.module.attr_ratio
+                img_ratio = model.module.img_ratio
             else:
                 x = x.cuda()
                 z_all = model.forward(x)
@@ -270,33 +267,36 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
             optimizer.step()
             optimizer.zero_grad()
 
-            cum_loss = cum_loss + loss.data[0]
+            cum_loss = cum_loss + loss.item()
             avg_loss = cum_loss/float(i)
 
             acc_all.append(correct_this/ float(count_this)*100)
-            lambda_c_list.append(lambda_c.mean())
-            attr_ratio_list.append(attr_ratio.item())
-
+            lambda_c_list.append(lambda_c.mean().item())
+            # attr_ratio_list.append(attr_ratio.item())
+            img_ratio_list.append(img_ratio.item())
             acc_mean = np.array(acc_all).mean()
             acc_std = np.std(acc_all)
 
             if i % print_freq==0:
-                print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f} | Acc {:.2f} | lambda {:.2f}| attr_ratio {:.2f}%'.format(epoch, i, len(base_loader), avg_loss, acc_mean, lambda_c.mean(), attr_ratio))
+                print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f} | Acc {:.2f} | lambda {:.2f}| img_ratio {:.2f}%'.format(
+                    epoch, i, len(base_loader), avg_loss, acc_mean, lambda_c.mean(), img_ratio*100))
                 # print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f} | Acc {:.2f}%'.format(epoch, i, len(base_loader), avg_loss, acc_mean))
 
 
 
         lambda_c_mean = np.array(lambda_c_list).mean()
-        attr_ratio_mean = np.array(attr_ratio_list).mean()
+        # attr_ratio_mean = np.array(attr_ratio_list).mean()
+        img_ratio_mean = np.array(img_ratio_list).mean()
+
         print('Train Acc = %4.2f%% +- %4.2f%%' %(acc_mean, 1.96* acc_std/np.sqrt(iter_num)))
         end = time.time()
         print("train time = %.2f s" % (end-start))
-        writer.add_scalar('train_loss', avg_loss, epoch)
-        writer.add_scalar('train_acc', acc_mean, epoch)
+        # writer.add_scalar('train_loss', avg_loss, epoch)
+        # writer.add_scalar('train_acc', acc_mean, epoch)
         trlog['train_loss'].append(avg_loss)
         trlog['train_acc'].append(acc_mean)
         trlog['epoch'].append(epoch)
-        trlog['attr_ratio'].append(attr_ratio_mean)
+        trlog['img_ratio'].append(img_ratio_mean)
         trlog['lambda_c'].append(lambda_c_mean)
         torch.cuda.empty_cache()
 
@@ -327,11 +327,12 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
             acc_std  = np.std(acc_all)
             print('%d Test Acc = %4.2f%% +- %4.2f%%' %(iter_num,  acc_mean, 1.96* acc_std/np.sqrt(iter_num)))
             # acc = acc_mean
-            writer.add_scalar('val_acc', acc_mean, epoch)
+            # writer.add_scalar('val_acc', acc_mean, epoch)
             trlog['val_acc'].append(acc_mean)
 
         end = time.time()
         print("validation time = %.2f s" % (end-start))
+        trlog['lr'].append(optimizer.param_groups[0]['lr'])
 
         # %%
         if acc_mean > trlog['max_acc'] : #for baseline and baseline++, we don't use validation in default and we let acc = -1, but we allow options to validate with DB index
@@ -363,9 +364,8 @@ def train_multi_gpu(base_loader, val_loader, model, start_epoch, stop_epoch, par
         print('ETA:{}/{}'.format(timer.measure(), timer.measure((epoch+1-start_epoch) / float(stop_epoch-start_epoch))))
 
         print('epoch: ', epoch, 'lr: ', optimizer.param_groups[0]['lr'])
-        trlog['lr'].append(optimizer.param_groups[0]['lr'])
         # %%
-    writer.close()
+    # writer.close()
     # save_fig(trlog_path)
     return model
 
@@ -459,12 +459,13 @@ if __name__=='__main__':
             model.load_state_dict(tmp['state'])
             print('resume training')
     
-    # if torch.cuda.device_count() > 1:
-    model = torch.nn.DataParallel(model, device_ids = range(torch.cuda.device_count()))  
-    print('gpu device: ', list(range(torch.cuda.device_count())))
+    if torch.cuda.device_count() > 1:
+        model = torch.nn.DataParallel(model, device_ids = range(torch.cuda.device_count()))  
+        print('gpu device: ', list(range(torch.cuda.device_count())))
 
-    model = train_multi_gpu(base_loader, val_loader,  model, start_epoch, stop_epoch, params, max_acc)
-
+    model = train(base_loader, val_loader,  model, start_epoch, stop_epoch, params, max_acc)
+    # model = train_multi_gpu(base_loader, val_loader,  model, start_epoch, stop_epoch, params, max_acc)
+    # model = train_cheap_memory(base_loader, val_loader,  model, start_epoch, stop_epoch, params, max_acc)
 
     # if torch.cuda.device_count() > 1:
     #     model = train_multi_gpu(base_loader, val_loader,  model, start_epoch, stop_epoch, params, max_acc)

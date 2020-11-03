@@ -33,19 +33,18 @@ class AM3(nn.Module):
             nn.Linear(300, self.feature.final_feat_dim)
         )
 
-        # self.mixNet = nn.Sequential(
-        #     nn.Linear(self.feature.final_feat_dim, 300),
-        #     nn.ReLU(),
-        #     nn.Dropout(1.0 - params.mlp_dropout),
-        #     nn.Linear(300, 1),
-        #     nn.Sigmoid()
-        # )
+        self.mixNet = nn.Sequential(
+            nn.Linear(self.feature.final_feat_dim, 300),
+            nn.ReLU(),
+            nn.Dropout(1.0 - params.mlp_dropout),
+            nn.Linear(300, 1),
+            nn.Sigmoid()
+        )
 
-        self.mixNet = nn.Sequential()
 
 
         self.attr_ratio = None
-
+        self.img_ratio = None
         self.loss_fn = nn.CrossEntropyLoss()
 
 
@@ -78,23 +77,12 @@ class AM3(nn.Module):
         return float(top1_correct), len(y_query)
 
 
-    # def correct(self, z_all, lambda_c, attr_proj):
-        
-    #     y_query = np.repeat(range( self.n_way ), self.n_query )
 
-
-# syn_correct, syn_count = fsl_model.correct([img_feat, syn_attr], is_feature=True)
-
-                # z_all, lambda_c, attr_proj = model.forward(x)
-                # scores = model.compute_score(z_all, lambda_c, attr_proj)
-                # correct_this, count_this = model.correct(scores)
                 
     def correct_quick(self, x):
         """[summary] 
-
         Args:
             x ([type]): z_all, attr_feat, and z_all is img feat extracted from backbone
-
         Returns:
             [type]: correct_this, count_this
         """
@@ -109,7 +97,6 @@ class AM3(nn.Module):
     # def forward(self, img_feat, attr_feat, is_feature=False):
     def forward(self, x):
         """[summary]
-
         Args:
             x[0] ([type]): image:  (n_way*(k_shot+query), 3, 224, 224)
             x[1] ([type]): attribute: (n_way, feat_dim=312)
@@ -123,7 +110,7 @@ class AM3(nn.Module):
         z_all       = self.feature.forward(img_feat)
 
         return z_all, lambda_c, attr_proj
-
+# 
 
 
 
@@ -142,7 +129,10 @@ class AM3(nn.Module):
         z_proto = lambda_c * img_proto + (1-lambda_c) * attr_proj
         
         z_proto_abs = lambda_c * img_proto.abs() + (1-lambda_c) * attr_proj.abs()
+
         self.attr_ratio = ((1-lambda_c) * attr_proj.abs()).mean() / z_proto_abs.mean()
+        self.img_ratio = 1- self.attr_ratio
+        
         # self.attr_ratio = ((1-lambda_c) * attr_proj.abs()).mean() / (img_proto.abs().mean() + )
 
         # print("attr_ratio = ", self.attr_ratio.data)
@@ -152,13 +142,10 @@ class AM3(nn.Module):
 
         
 
-
-
     def get_coef(self, attr_feat):
         """
         :param attr_feat: shape: (n_way, k_shot+query, feat_dim=312)
         :return: coefficient params lambda_c, with the attribute just used
-
         """
         # attr_feat = attr_feat.mean(1)   # (n_way, feat_dim)
         attr_proj = self.transformer(attr_feat)   # (n_way, img_feat_dim)
@@ -176,4 +163,3 @@ class AM3(nn.Module):
     #     attr_mean = (attr_proj * (lambda_c)).mean()
     #     attr_ratio = attr_mean / (z_mean + attr_mean)
     #     return attr_ratio
-

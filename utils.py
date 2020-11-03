@@ -27,8 +27,8 @@ def one_hot(y, num_class):
 
 
 def euclidean_dist(x, y):
-    # x: N x D
-    # y: M x D
+    # x: N x D, query
+    # y: M x D, proto
     n = x.size(0)
     m = y.size(0)
     d = x.size(1)

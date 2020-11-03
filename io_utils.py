@@ -34,8 +34,8 @@ def parse_args(script):
 
     # learning rate, optim
     parser.add_argument('--lr_anneal', default='const', help='const/pwc/exp, schedule learning rate')
-    parser.add_argument('--init_lr', default=0.01)
-    parser.add_argument('--optim', default='SGD', help='Adam/SGD')
+    parser.add_argument('--init_lr', default=0.001)
+    parser.add_argument('--optim', default='Adam', help='Adam/SGD')
     # learning rate decay
     
     if script == 'train':
@@ -76,7 +76,8 @@ def get_trlog(params):
     trlog['args'] = vars(params)
     trlog['epoch'] = []
     trlog['train_loss'] = []
-    trlog['attr_ratio'] = []
+    # trlog['attr_ratio'] = []
+    trlog['img_ratio'] = []
     trlog['lambda_c'] = []
     trlog['lr'] = []
     trlog['train_acc'] = []
@@ -155,33 +156,29 @@ def save_fig(trlog_path):
         plt.savefig('%s_acc.jpg' % trlog_path)
 
         plt.figure()
-        attr_ratio = trlog['attr_ratio']
-        x = range(len(attr_ratio))
-        plt.plot(x, attr_ratio, linewidth = 1.0)
-        plt.title('Attribute Ratio')
+        img_ratio = trlog['img_ratio']
+        lambda_c = trlog['lambda_c']
+        x = range(len(img_ratio))
+        plt.plot(x, img_ratio, linewidth = 1.0, label='img_ratio')
+        plt.plot(x, lambda_c, linewidth = 1.0, label='lambda')
+        plt.title('Image Ratio')
+        plt.xlabel('epoch')
+        plt.ylabel('Percentage')
+        plt.legend()
+
+        
         plt.grid()
-        plt.savefig('%s_attr_ratio.jpg' % trlog_path)
+        plt.savefig('%s_img_ratio.jpg' % trlog_path)
 
 
 
         plt.figure()
         lr = trlog['lr']
         x = list(range(len(lr)))
-        plt.subplot('211')
         l1, = plt.plot(x, lr, linewidth = 1.0)
         plt.title('Learning rate')
         plt.xlabel('epoch')
         plt.ylabel('lr')
-        plt.grid()
-
-        lambda_c = trlog['lambda_c']
-        x = list(range(len(lambda_c)))
-        plt.subplot('212')
-        l1, = plt.plot(x, lambda_c, linewidth = 1.0)
-
-        plt.title('lambda')
-        plt.xlabel('epoch')
-        plt.ylabel('lambda')
         plt.grid()
         plt.savefig('%s_params.jpg' % trlog_path)        
 
