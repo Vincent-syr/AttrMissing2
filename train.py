@@ -117,7 +117,7 @@ def train(base_loader, val_loader, model, start_epoch, stop_epoch, params, max_a
             correct_this, count_this = model.correct(scores)
 
             y_query = torch.from_numpy(np.repeat(range(model.n_way ), model.n_query))
-            y_query = Variable(y_query.cuda())
+            y_query = Variable(y_query.long().cuda())
             loss = model.loss_fn(scores, y_query )
             loss.backward()
             optimizer.step()

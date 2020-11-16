@@ -1,0 +1,3 @@
+Time: 20201116-105731, Setting: CUB-base-ResNet10-protonet-aug 5shot 5way_train 5way_test, Acc: 400 Test Acc = 94.70% +- 0.54% 
+Time: 20201116-105737, Setting: CUB-val-ResNet10-protonet-aug 5shot 5way_train 5way_test, Acc: 400 Test Acc = 83.54% +- 0.79% 
+Time: 20201116-105742, Setting: CUB-novel-ResNet10-protonet-aug 5shot 5way_train 5way_test, Acc: 400 Test Acc = 84.04% +- 0.81% 

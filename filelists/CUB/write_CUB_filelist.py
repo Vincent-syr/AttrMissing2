@@ -7,10 +7,11 @@ import random
 
 # cwd = os.getcwd() 
 # data_path = join(cwd,'CUB_200_2011/images')
-data_path = '/test/0Dataset_others/Dataset/Caltech-UCSD-Birds-200-2011/CUB_200_2011/images'
+# data_path = '/test/0Dataset_others/Dataset/Caltech-UCSD-Birds-200-2011/CUB_200_2011/images'
+data_path = 'F:/shengyunrui/CUB_200_2011/CUB_200_2011/images'
 savedir = './'
-# dataset_list = ['base','val','novel']
-dataset_list = ['val']
+dataset_list = ['base','val','novel']
+# dataset_list = ['val']
 
 #if not os.path.exists(savedir):
 #    os.makedirs(savedir)

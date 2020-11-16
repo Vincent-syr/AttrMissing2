@@ -69,7 +69,7 @@ class SimpleDataManager(DataManager):
         else:
             dataset = SimpleDataset(data_file, transform)
 
-        data_loader_params = dict(batch_size = self.batch_size, shuffle = True, num_workers = 12, pin_memory = True)       
+        data_loader_params = dict(batch_size = self.batch_size, shuffle = True, num_workers = 0, pin_memory = True)       
         data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
 
         return data_loader
@@ -101,8 +101,8 @@ class SetDataManager(DataManager):
             else:
                 dataset = SimpleDataset(data_file, transform)
                 sampler = EpisodicMultiModalSampler(dataset.label, self.n_way, self.batch_size, self.n_episode)
-            data_loader_params = dict(batch_sampler = sampler,  num_workers = 12, pin_memory = True)       
-            # data_loader_params = dict(batch_sampler = sampler,  num_workers = 1, pin_memory = True)       
+            # data_loader_params = dict(batch_sampler = sampler,  num_workers = 12, pin_memory = True)       
+            data_loader_params = dict(batch_sampler = sampler,  num_workers = 0, pin_memory = True)       
             data_loader = torch.utils.data.DataLoader(dataset, **data_loader_params)
 
         else: # use attribute word vector
